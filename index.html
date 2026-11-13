@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>NIVEL ARENA レベルカウンター</title>
+<style>
+  :root {
+    --max: 10;
+    --bg: #0b1020;
+    --p1: #2563eb;
+    --p2: #dc2626;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: #fff;
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    overflow: hidden; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+  main {
+    display: grid; grid-template-rows: 1fr auto 1fr;
+    height: 100dvh; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .player {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1.2vh; padding: 8px 12px; position: relative;
+  }
+  .player.p1 { background: linear-gradient(160deg, #1e3a8a, #0b1020 70%); }
+  .player.p2 { background: linear-gradient(160deg, #7f1d1d, #0b1020 70%); transform: rotate(180deg); }
+  .name { font-size: 14px; letter-spacing: .2em; opacity: .75; }
+  .level-label { font-size: 12px; letter-spacing: .3em; opacity: .6; }
+  .row { display: flex; align-items: center; justify-content: center; gap: 5vw; width: 100%; }
+  .num {
+    font-size: min(26vh, 40vw); font-weight: 800; line-height: 1;
+    min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums;
+    transition: transform .12s;
+  }
+  .num.bump { transform: scale(1.12); }
+  .num.max { color: #fde047; text-shadow: 0 0 24px rgba(253,224,71,.7); }
+  .btn {
+    width: min(24vw, 18vh); height: min(24vw, 18vh);
+    border-radius: 50%; border: 0; color: #fff; font-size: min(12vw, 9vh); font-weight: 700;
+    background: rgba(255,255,255,.14); backdrop-filter: blur(4px);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.25);
+    cursor: pointer; display: grid; place-items: center; padding: 0;
+  }
+  .btn:active { background: rgba(255,255,255,.32); transform: scale(.94); }
+  .btn:disabled { opacity: .25; }
+  .pips { display: flex; gap: 5px; }
+  .pip { width: 3.2vw; max-width: 14px; height: 3.2vw; max-height: 14px; border-radius: 50%; background: rgba(255,255,255,.18); }
+  .pip.on { background: #fff; }
+  .p1 .pip.on { background: #60a5fa; }
+  .p2 .pip.on { background: #f87171; }
+  .center {
+    display: flex; justify-content: center; gap: 12px; padding: 6px;
+    background: #000; border-top: 1px solid #333; border-bottom: 1px solid #333;
+  }
+  .center button {
+    background: #1f2937; color: #e5e7eb; border: 1px solid #374151; border-radius: 8px;
+    padding: 8px 16px; font-size: 14px; cursor: pointer;
+  }
+  .center button:active { background: #374151; }
+</style>
+</head>
+<body>
+<main>
+  <section class="player p2" id="p2">
+    <div class="name">PLAYER 2</div>
+    <div class="row">
+      <button class="btn" data-p="1" data-d="-1" aria-label="P2 レベルダウン">−</button>
+      <div class="num" id="n1">1</div>
+      <button class="btn" data-p="1" data-d="1" aria-label="P2 レベルアップ">+</button>
+    </div>
+    <div class="pips" id="pips1"></div>
+    <div class="level-label">LEVEL</div>
+  </section>
+
+  <div class="center">
+    <button id="reset">リセット</button>
+  </div>
+
+  <section class="player p1" id="p1">
+    <div class="name">PLAYER 1</div>
+    <div class="row">
+      <button class="btn" data-p="0" data-d="-1" aria-label="P1 レベルダウン">−</button>
+      <div class="num" id="n0">1</div>
+      <button class="btn" data-p="0" data-d="1" aria-label="P1 レベルアップ">+</button>
+    </div>
+    <div class="pips" id="pips0"></div>
+    <div class="level-label">LEVEL</div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const MAX = 10, MIN = 1, KEY = "nivel-arena-levels";
+  let levels = [1, 1];
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (Array.isArray(saved) && saved.length === 2) {
+      levels = saved.map(v => Math.min(MAX, Math.max(MIN, Number(v) || MIN)));
+    }
+  } catch (e) {}
+
+  // レベル目盛りを生成
+  [0, 1].forEach(p => {
+    const box = document.getElementById("pips" + p);
+    for (let i = 1; i <= MAX; i++) {
+      const s = document.createElement("span");
+      s.className = "pip";
+      box.appendChild(s);
+    }
+  });
+
+  function render(p, bump) {
+    const n = document.getElementById("n" + p);
+    n.textContent = levels[p];
+    n.classList.toggle("max", levels[p] === MAX);
+    if (bump) {
+      n.classList.add("bump");
+      setTimeout(() => n.classList.remove("bump"), 120);
+    }
+    document.querySelectorAll("#pips" + p + " .pip").forEach((el, i) => {
+      el.classList.toggle("on", i < levels[p]);
+    });
+    document.querySelector(`.btn[data-p="${p}"][data-d="1"]`).disabled = levels[p] >= MAX;
+    document.querySelector(`.btn[data-p="${p}"][data-d="-1"]`).disabled = levels[p] <= MIN;
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(levels)); } catch (e) {}
+  }
+
+  document.querySelectorAll(".btn").forEach(b => {
+    b.addEventListener("click", () => {
+      const p = Number(b.dataset.p), d = Number(b.dataset.d);
+      const next = Math.min(MAX, Math.max(MIN, levels[p] + d));
+      if (next === levels[p]) return;
+      levels[p] = next;
+      render(p, true);
+      save();
+      if (navigator.vibrate) navigator.vibrate(15);
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    if (!confirm("両プレイヤーのレベルを1に戻しますか?")) return;
+    levels = [1, 1];
+    render(0); render(1); save();
+  });
+
+  render(0); render(1);
+})();
+</script>
+</body>
+</html>
