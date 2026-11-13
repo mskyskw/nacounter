@@ -23,14 +23,21 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
-  /* 各プレイヤー領域(クリップ用の枠) */
   .zone {
     position: relative; overflow: hidden; min-height: 0; min-width: 0;
+    background: linear-gradient(160deg, var(--c-main), #0b1020 70%);
+    transition: background .25s;
   }
-  .zone.p1 { background: linear-gradient(160deg, #1e3a8a, #0b1020 70%); }
-  .zone.p2 { background: linear-gradient(160deg, #7f1d1d, #0b1020 70%); }
+  /* 初期色(従来どおり): P1=青系 / P2=赤系 */
+  .zone[data-color="default1"] { --c-main: #1e3a8a; --c-pip: #60a5fa; }
+  .zone[data-color="default2"] { --c-main: #7f1d1d; --c-pip: #f87171; }
+  /* リーダー色 */
+  .zone[data-color="red"]    { --c-main: #991b1b; --c-pip: #f87171; }
+  .zone[data-color="blue"]   { --c-main: #1d4ed8; --c-pip: #93c5fd; }
+  .zone[data-color="yellow"] { --c-main: #a16207; --c-pip: #fde047; }
+  .zone[data-color="purple"] { --c-main: #6b21a8; --c-pip: #d8b4fe; }
+  .zone[data-color="green"]  { --c-main: #166534; --c-pip: #86efac; }
 
-  /* 実際のコンテンツ。中央に置いて回転させる */
   .player {
     position: absolute; top: 50%; left: 50%;
     width: 100%; height: 100%;
@@ -38,13 +45,9 @@
     gap: calc(var(--u) * 2); padding: 4px 8px;
     transform: translate(-50%, -50%) rotate(0deg);
   }
-
-  /* 対面モード: 上側のみ180度 */
   body[data-mode="face"] .zone.p2 .player {
     transform: translate(-50%, -50%) rotate(180deg);
   }
-
-  /* 横並びモード: 両方を時計回りに90度。回転後に領域へ収まるよう幅/高さを入れ替える */
   body[data-mode="side"] .player {
     width: var(--zone-h); height: var(--zone-w);
     transform: translate(-50%, -50%) rotate(-90deg);
@@ -77,9 +80,21 @@
   .btn:disabled { opacity: .25; }
   .pips { display: flex; gap: calc(var(--u) * 1.5); }
   .pip { width: calc(var(--u) * 3); height: calc(var(--u) * 3); border-radius: 50%; background: rgba(255,255,255,.18); }
-  .pip.on { background: #fff; }
-  .p1 .pip.on { background: #60a5fa; }
-  .p2 .pip.on { background: #f87171; }
+  .pip.on { background: var(--c-pip); }
+
+  /* 色選択 */
+  .swatches { display: flex; gap: calc(var(--u) * 3); margin-top: calc(var(--u) * 1); }
+  .sw {
+    width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+    min-width: 28px; min-height: 28px;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,.35); padding: 0; cursor: pointer;
+  }
+  .sw[data-c="red"]    { background: #dc2626; }
+  .sw[data-c="blue"]   { background: #2563eb; }
+  .sw[data-c="yellow"] { background: #eab308; }
+  .sw[data-c="purple"] { background: #9333ea; }
+  .sw[data-c="green"]  { background: #16a34a; }
+  .sw.sel { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.45); transform: scale(1.1); }
 
   .center {
     display: flex; justify-content: center; gap: 12px; padding: 6px;
@@ -94,7 +109,7 @@
 </head>
 <body data-mode="face">
 <main>
-  <section class="zone p2" id="z1">
+  <section class="zone p2" id="z1" data-color="default2">
     <div class="player">
       <div class="name">PLAYER 2</div>
       <div class="row">
@@ -104,6 +119,7 @@
       </div>
       <div class="pips" id="pips1"></div>
       <div class="level-label">LEVEL</div>
+      <div class="swatches" data-p="1"></div>
     </div>
   </section>
 
@@ -112,7 +128,7 @@
     <button id="reset">リセット</button>
   </div>
 
-  <section class="zone p1" id="z0">
+  <section class="zone p1" id="z0" data-color="default1">
     <div class="player">
       <div class="name">PLAYER 1</div>
       <div class="row">
@@ -122,15 +138,22 @@
       </div>
       <div class="pips" id="pips0"></div>
       <div class="level-label">LEVEL</div>
+      <div class="swatches" data-p="0"></div>
     </div>
   </section>
 </main>
 
 <script>
 (() => {
-  const MAX = 10, MIN = 1, KEY = "nivel-arena-levels", MODE_KEY = "nivel-arena-mode";
+  const MAX = 10, MIN = 1;
+  const KEY = "nivel-arena-levels", MODE_KEY = "nivel-arena-mode", COLOR_KEY = "nivel-arena-colors";
+  const COLORS = [
+    ["red", "赤"], ["blue", "青"], ["yellow", "黄"], ["purple", "紫"], ["green", "緑"]
+  ];
+  const DEFAULTS = ["default1", "default2"];
   let levels = [1, 1];
   let mode = "face";
+  let colors = [...DEFAULTS];
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
@@ -139,8 +162,13 @@
     }
     const m = localStorage.getItem(MODE_KEY);
     if (m === "face" || m === "side") mode = m;
+    const c = JSON.parse(localStorage.getItem(COLOR_KEY));
+    if (Array.isArray(c) && c.length === 2) {
+      colors = c.map((v, i) => (COLORS.some(x => x[0] === v) ? v : DEFAULTS[i]));
+    }
   } catch (e) {}
 
+  // レベル目盛りと色ボタンを生成
   [0, 1].forEach(p => {
     const box = document.getElementById("pips" + p);
     for (let i = 1; i <= MAX; i++) {
@@ -148,15 +176,34 @@
       s.className = "pip";
       box.appendChild(s);
     }
+    const sw = document.querySelector(`.swatches[data-p="${p}"]`);
+    COLORS.forEach(([key, label]) => {
+      const b = document.createElement("button");
+      b.className = "sw";
+      b.dataset.c = key;
+      b.setAttribute("aria-label", `P${p + 1} 背景色: ${label}`);
+      b.addEventListener("click", () => {
+        // 選択中の色をもう一度押すと初期色に戻す
+        colors[p] = colors[p] === key ? DEFAULTS[p] : key;
+        applyColor(p);
+        try { localStorage.setItem(COLOR_KEY, JSON.stringify(colors)); } catch (e) {}
+      });
+      sw.appendChild(b);
+    });
   });
 
-  // 領域サイズをCSS変数へ反映(横並びモードの回転後サイズ計算用)
+  function applyColor(p) {
+    document.getElementById("z" + p).dataset.color = colors[p];
+    document.querySelectorAll(`.swatches[data-p="${p}"] .sw`).forEach(el => {
+      el.classList.toggle("sel", el.dataset.c === colors[p]);
+    });
+  }
+
   function updateZoneSize() {
     const z = document.getElementById("z0");
-    const w = z.clientWidth, h = z.clientHeight;
     const root = document.documentElement.style;
-    root.setProperty("--zone-w", w + "px");
-    root.setProperty("--zone-h", h + "px");
+    root.setProperty("--zone-w", z.clientWidth + "px");
+    root.setProperty("--zone-h", z.clientHeight + "px");
   }
 
   function applyMode() {
@@ -203,6 +250,7 @@
     applyMode();
   });
 
+  // リセット: レベルのみ1に戻す(色・向きは維持)
   document.getElementById("reset").addEventListener("click", () => {
     if (!confirm("両プレイヤーのレベルを1に戻しますか?")) return;
     levels = [1, 1];
@@ -213,7 +261,7 @@
   window.addEventListener("orientationchange", () => setTimeout(updateZoneSize, 200));
 
   applyMode();
-  render(0); render(1);
+  [0, 1].forEach(p => { render(p); applyColor(p); });
 })();
 </script>
 </body>
