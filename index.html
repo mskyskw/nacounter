@@ -28,15 +28,13 @@
     background: linear-gradient(160deg, var(--c-main), #0b1020 70%);
     transition: background .25s;
   }
-  /* 初期色(従来どおり): P1=青系 / P2=赤系 */
-  .zone[data-color="default1"] { --c-main: #1e3a8a; --c-pip: #60a5fa; }
-  .zone[data-color="default2"] { --c-main: #7f1d1d; --c-pip: #f87171; }
-  /* リーダー色 */
-  .zone[data-color="red"]    { --c-main: #991b1b; --c-pip: #f87171; }
-  .zone[data-color="blue"]   { --c-main: #1d4ed8; --c-pip: #93c5fd; }
-  .zone[data-color="yellow"] { --c-main: #a16207; --c-pip: #fde047; }
-  .zone[data-color="purple"] { --c-main: #6b21a8; --c-pip: #d8b4fe; }
-  .zone[data-color="green"]  { --c-main: #166534; --c-pip: #86efac; }
+  .zone[data-color="default1"] { --c-main: #1e3a8a; --c-pip: #60a5fa; --c-sw: #2563eb; }
+  .zone[data-color="default2"] { --c-main: #7f1d1d; --c-pip: #f87171; --c-sw: #dc2626; }
+  .zone[data-color="red"]    { --c-main: #991b1b; --c-pip: #f87171; --c-sw: #dc2626; }
+  .zone[data-color="blue"]   { --c-main: #1d4ed8; --c-pip: #93c5fd; --c-sw: #2563eb; }
+  .zone[data-color="yellow"] { --c-main: #a16207; --c-pip: #fde047; --c-sw: #eab308; }
+  .zone[data-color="purple"] { --c-main: #6b21a8; --c-pip: #d8b4fe; --c-sw: #9333ea; }
+  .zone[data-color="green"]  { --c-main: #166534; --c-pip: #86efac; --c-sw: #16a34a; }
 
   .player {
     position: absolute; top: 50%; left: 50%;
@@ -54,8 +52,48 @@
     --u: min(var(--zone-h) / 100, var(--zone-w) / 60);
   }
 
+  /* 名前 + 色ボタンのヘッダー行 */
+  .head { display: flex; align-items: center; justify-content: center; gap: calc(var(--u) * 3); }
   .name { font-size: calc(var(--u) * 3.5); letter-spacing: .2em; opacity: .75; }
   .level-label { font-size: calc(var(--u) * 3); letter-spacing: .3em; opacity: .6; }
+
+  /* 色選択: トグルボタン + 展開するスウォッチ */
+  .picker { display: flex; align-items: center; gap: calc(var(--u) * 2); }
+  .toggle {
+    width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+    min-width: 30px; min-height: 30px;
+    border-radius: 50%; padding: 0; cursor: pointer;
+    background: var(--c-sw);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.25);
+    position: relative;
+  }
+  /* 「色を選べる」ことを示す小さなリング */
+  .toggle::after {
+    content: ""; position: absolute; inset: 22%;
+    border-radius: 50%; border: 2px dashed rgba(255,255,255,.85);
+  }
+  .toggle:active { transform: scale(.92); }
+
+  .swatches {
+    display: flex; gap: calc(var(--u) * 2.5);
+    max-width: 0; opacity: 0; overflow: hidden;
+    transition: max-width .3s ease, opacity .2s ease;
+    padding: 4px 0;
+  }
+  .picker.open .swatches { max-width: 80vw; opacity: 1; overflow: visible; }
+  .sw {
+    width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+    min-width: 30px; min-height: 30px; flex: 0 0 auto;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,.35); padding: 0; cursor: pointer;
+  }
+  .sw[data-c="red"]    { background: #dc2626; }
+  .sw[data-c="blue"]   { background: #2563eb; }
+  .sw[data-c="yellow"] { background: #eab308; }
+  .sw[data-c="purple"] { background: #9333ea; }
+  .sw[data-c="green"]  { background: #16a34a; }
+  .sw.sel { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.45); }
+  .sw:active { transform: scale(.92); }
 
   .row {
     display: grid; grid-template-columns: 1fr auto 1fr;
@@ -82,20 +120,6 @@
   .pip { width: calc(var(--u) * 3); height: calc(var(--u) * 3); border-radius: 50%; background: rgba(255,255,255,.18); }
   .pip.on { background: var(--c-pip); }
 
-  /* 色選択 */
-  .swatches { display: flex; gap: calc(var(--u) * 3); margin-top: calc(var(--u) * 1); }
-  .sw {
-    width: calc(var(--u) * 8); height: calc(var(--u) * 8);
-    min-width: 28px; min-height: 28px;
-    border-radius: 50%; border: 2px solid rgba(255,255,255,.35); padding: 0; cursor: pointer;
-  }
-  .sw[data-c="red"]    { background: #dc2626; }
-  .sw[data-c="blue"]   { background: #2563eb; }
-  .sw[data-c="yellow"] { background: #eab308; }
-  .sw[data-c="purple"] { background: #9333ea; }
-  .sw[data-c="green"]  { background: #16a34a; }
-  .sw.sel { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.45); transform: scale(1.1); }
-
   .center {
     display: flex; justify-content: center; gap: 12px; padding: 6px;
     background: #000; border-top: 1px solid #333; border-bottom: 1px solid #333;
@@ -111,7 +135,13 @@
 <main>
   <section class="zone p2" id="z1" data-color="default2">
     <div class="player">
-      <div class="name">PLAYER 2</div>
+      <div class="head">
+        <div class="name">PLAYER 2</div>
+        <div class="picker" data-p="1">
+          <button class="toggle" aria-label="P2 リーダー色を選ぶ"></button>
+          <div class="swatches"></div>
+        </div>
+      </div>
       <div class="row">
         <button class="btn" data-p="1" data-d="-1" aria-label="P2 レベルダウン">−</button>
         <div class="num" id="n1">1</div>
@@ -119,7 +149,6 @@
       </div>
       <div class="pips" id="pips1"></div>
       <div class="level-label">LEVEL</div>
-      <div class="swatches" data-p="1"></div>
     </div>
   </section>
 
@@ -130,7 +159,13 @@
 
   <section class="zone p1" id="z0" data-color="default1">
     <div class="player">
-      <div class="name">PLAYER 1</div>
+      <div class="head">
+        <div class="name">PLAYER 1</div>
+        <div class="picker" data-p="0">
+          <button class="toggle" aria-label="P1 リーダー色を選ぶ"></button>
+          <div class="swatches"></div>
+        </div>
+      </div>
       <div class="row">
         <button class="btn" data-p="0" data-d="-1" aria-label="P1 レベルダウン">−</button>
         <div class="num" id="n0">1</div>
@@ -138,7 +173,6 @@
       </div>
       <div class="pips" id="pips0"></div>
       <div class="level-label">LEVEL</div>
-      <div class="swatches" data-p="0"></div>
     </div>
   </section>
 </main>
@@ -168,33 +202,50 @@
     }
   } catch (e) {}
 
-  // レベル目盛りと色ボタンを生成
+  const pickers = [0, 1].map(p => document.querySelector(`.picker[data-p="${p}"]`));
+
+  function closeAll() { pickers.forEach(el => el.classList.remove("open")); }
+
   [0, 1].forEach(p => {
+    // レベル目盛り
     const box = document.getElementById("pips" + p);
     for (let i = 1; i <= MAX; i++) {
       const s = document.createElement("span");
       s.className = "pip";
       box.appendChild(s);
     }
-    const sw = document.querySelector(`.swatches[data-p="${p}"]`);
+    // 色ボタン
+    const picker = pickers[p];
+    const sw = picker.querySelector(".swatches");
     COLORS.forEach(([key, label]) => {
       const b = document.createElement("button");
       b.className = "sw";
       b.dataset.c = key;
       b.setAttribute("aria-label", `P${p + 1} 背景色: ${label}`);
-      b.addEventListener("click", () => {
-        // 選択中の色をもう一度押すと初期色に戻す
-        colors[p] = colors[p] === key ? DEFAULTS[p] : key;
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        colors[p] = key;
         applyColor(p);
-        try { localStorage.setItem(COLOR_KEY, JSON.stringify(colors)); } catch (e) {}
+        try { localStorage.setItem(COLOR_KEY, JSON.stringify(colors)); } catch (err) {}
+        picker.classList.remove("open"); // 選んだら自動で畳む
       });
       sw.appendChild(b);
     });
+    // トグル
+    picker.querySelector(".toggle").addEventListener("click", e => {
+      e.stopPropagation();
+      const willOpen = !picker.classList.contains("open");
+      closeAll();
+      picker.classList.toggle("open", willOpen);
+    });
   });
+
+  // 画面の他の場所をタップしたら畳む
+  document.addEventListener("click", closeAll);
 
   function applyColor(p) {
     document.getElementById("z" + p).dataset.color = colors[p];
-    document.querySelectorAll(`.swatches[data-p="${p}"] .sw`).forEach(el => {
+    pickers[p].querySelectorAll(".sw").forEach(el => {
       el.classList.toggle("sel", el.dataset.c === colors[p]);
     });
   }
